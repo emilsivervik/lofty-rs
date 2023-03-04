@@ -558,6 +558,30 @@ pub fn read_from(file: &mut File) -> Result<TaggedFile> {
 	Probe::new(BufReader::new(file)).guess_file_type()?.read()
 }
 
+/// Read a [`TaggedFile`] from a [Vector]
+///
+/// # Errors
+///
+/// See:
+///
+/// * [`Probe::guess_file_type`]
+/// * [`Probe::read`]
+///
+/// # Examples
+///
+/// ```rust
+/// use lofty::read_from_vec;
+///
+/// let vec = fs::read("tests/files/assets/minimal/full_test.mp3")?;
+///
+/// let parsed_file = read_from_vec(vec)?;
+/// ```
+pub fn read_from_vec(vector: &Vec<u8>) -> Result<TaggedFile> {
+	Probe::new(std::io::Cursor::new(vector))
+		.guess_file_type()?
+		.read()
+}
+
 /// Read a [`TaggedFile`] from a path
 ///
 /// NOTE: This will determine the [`FileType`] from the extension
@@ -590,7 +614,10 @@ where
 mod tests {
 	use crate::{FileType, Probe};
 
-	use std::fs::File;
+	use std::{
+		fs::{read, File},
+		io::Cursor,
+	};
 
 	#[test]
 	fn mp3_id3v2_trailing_junk() {
@@ -621,6 +648,7 @@ mod tests {
 	fn test_probe(path: &str, expected_file_type_guess: FileType) {
 		test_probe_file(path, expected_file_type_guess);
 		test_probe_path(path, expected_file_type_guess);
+		test_probe_vector(path, expected_file_type_guess);
 	}
 
 	// Test from file contents
@@ -633,6 +661,13 @@ mod tests {
 	// Test from file extension
 	fn test_probe_path(path: &str, expected_file_type_guess: FileType) {
 		let probe = Probe::open(path).unwrap();
+		assert_eq!(probe.file_type(), Some(expected_file_type_guess));
+	}
+
+	// Test from vector
+	fn test_probe_vector(path: &str, expected_file_type_guess: FileType) {
+		let vector = read(path).unwrap();
+		let probe = Probe::new(Cursor::new(vector));
 		assert_eq!(probe.file_type(), Some(expected_file_type_guess));
 	}
 
